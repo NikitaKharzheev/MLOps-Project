@@ -41,10 +41,8 @@ class ModelManager:
             print(f"No model found for model_id: {model_id}")
             return None
 
-        # Отладка данных
         print(f"Data received in ModelManager.predict: {data_content}")
 
-        # Преобразуем данные в DataFrame
         try:
             df = pd.DataFrame(data_content)
         except Exception as e:
@@ -57,10 +55,8 @@ class ModelManager:
             print(f"Error making predictions: {e}")
             return None
 
-        # Логируем предсказания для отладки
         print(f"Predictions: {predictions}")
 
-        # Сохраняем предсказания для данной модели
         if model_id not in self.predictions:
             self.predictions[model_id] = []
         self.predictions[model_id].extend(predictions)
