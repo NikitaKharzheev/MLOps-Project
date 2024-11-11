@@ -92,14 +92,14 @@ uvicorn main:app --reload
 
 - Получения списка обученных моделей:
 
-    GET /trained-models
+    GET /trained-models  
     Описание: Возвращает список обученных моделей.
 
 - Получение предсказаний для модели:
 
-    GET /prediction/{model_id}
-    Параметры:
-    model_id: ID обученной модели.
+    GET /prediction/{model_id}  
+    Параметры:  
+    model_id: ID обученной модели.  
     Описание: Возвращает предсказания для модели.
 
 ### 7. Запуск Streamlit для дашборда
