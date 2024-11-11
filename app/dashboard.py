@@ -2,29 +2,26 @@ import streamlit as st
 import requests
 import json
 
-API_URL = "http://localhost:8000"  # замените на URL вашего FastAPI сервера
+API_URL = "http://localhost:8000"  
 
 st.title("Панель управления ML моделями")
 
-# Боковая панель для навигации
 st.sidebar.title("Навигация")
 options = ["Загрузить данные", "Обучить модель", "Сделать предсказание", "Просмотр моделей", "Просмотр предсказаний", "Обновить модель", "Удалить модель"]
 choice = st.sidebar.selectbox("Выберите действие", options)
 
-# Загрузка данных
 if choice == "Загрузить данные":
     st.subheader("Загрузите набор данных (в формате JSON)")
 
     uploaded_file = st.file_uploader("Выберите файл JSON", type=["json"])
     if uploaded_file is not None:
         try:
-            data = json.load(uploaded_file)  # Загружаем JSON данные
+            data = json.load(uploaded_file)  
             response = requests.post(f"{API_URL}/upload-data", files={"data": ("file.json", json.dumps(data), "application/json")})
             st.write(response.json())
         except json.JSONDecodeError:
             st.error("Недопустимый формат JSON файла.")
 
-# Обучение модели
 elif choice == "Обучить модель":
     st.subheader("Обучение модели")
 
@@ -42,7 +39,6 @@ elif choice == "Обучить модель":
         response = requests.post(f"{API_URL}/train", json=train_data)
         st.write(response.json())
 
-# Предсказание
 elif choice == "Сделать предсказание":
     st.subheader("Сделать предсказание")
 
@@ -53,7 +49,6 @@ elif choice == "Сделать предсказание":
         response = requests.post(f"{API_URL}/predict/{model_id}", files={"data": data})
         st.write(response.json())
 
-# Просмотр моделей
 elif choice == "Просмотр моделей":
     st.subheader("Доступные модели")
     response = requests.get(f"{API_URL}/models")
@@ -65,7 +60,6 @@ elif choice == "Просмотр моделей":
     trained_models = response.json().get("trained_models", [])
     st.write(trained_models)
 
-# Просмотр предсказаний
 elif choice == "Просмотр предсказаний":
     st.subheader("Просмотр предсказаний для модели")
 
@@ -78,7 +72,6 @@ elif choice == "Просмотр предсказаний":
         else:
             st.error(f"Ошибка: {response.json().get('detail', 'Не удалось получить предсказания')}")
 
-# Обновление модели
 elif choice == "Обновить модель":
     st.subheader("Обновление модели")
 
@@ -95,7 +88,6 @@ elif choice == "Обновить модель":
         response = requests.put(f"{API_URL}/update-model/{model_id}", json=update_data)
         st.write(response.json())
 
-# Удаление модели
 elif choice == "Удалить модель":
     st.subheader("Удаление модели")
 
