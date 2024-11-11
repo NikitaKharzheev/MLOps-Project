@@ -2,12 +2,21 @@ import streamlit as st
 import requests
 import json
 
-API_URL = "http://localhost:8000"  
+API_URL = "http://localhost:8000"
 
 st.title("Панель управления ML моделями")
 
 st.sidebar.title("Навигация")
-options = ["Загрузить данные", "Обучить модель", "Сделать предсказание", "Просмотр моделей", "Просмотр предсказаний", "Обновить модель", "Удалить модель", "Проверка статуса сервиса"]
+options = [
+    "Загрузить данные",
+    "Обучить модель",
+    "Сделать предсказание",
+    "Просмотр моделей",
+    "Просмотр предсказаний",
+    "Обновить модель",
+    "Удалить модель",
+    "Проверка статуса сервиса",
+]
 choice = st.sidebar.selectbox("Выберите действие", options)
 
 if choice == "Загрузить данные":
@@ -16,8 +25,11 @@ if choice == "Загрузить данные":
     uploaded_file = st.file_uploader("Выберите файл JSON", type=["json"])
     if uploaded_file is not None:
         try:
-            data = json.load(uploaded_file)  
-            response = requests.post(f"{API_URL}/upload-data", files={"data": ("file.json", json.dumps(data), "application/json")})
+            data = json.load(uploaded_file)
+            response = requests.post(
+                f"{API_URL}/upload-data",
+                files={"data": ("file.json", json.dumps(data), "application/json")},
+            )
             st.write(response.json())
         except json.JSONDecodeError:
             st.error("Недопустимый формат JSON файла.")
@@ -25,12 +37,16 @@ if choice == "Загрузить данные":
 elif choice == "Обучить модель":
     st.subheader("Обучение модели")
 
-    model_type = st.selectbox("Выберите тип модели", ["logistic_regression", "random_forest"])
+    model_type = st.selectbox(
+        "Выберите тип модели", ["logistic_regression", "random_forest"]
+    )
     target_variable = st.text_input("Введите целевую переменную")
     hyperparameters_input = st.text_area("Введите гиперпараметры (в формате JSON)")
 
     if st.button("Обучить"):
-        hyperparameters = json.loads(hyperparameters_input) if hyperparameters_input else {}
+        hyperparameters = (
+            json.loads(hyperparameters_input) if hyperparameters_input else {}
+        )
         train_data = {
             "model_type": model_type,
             "hyperparameters": hyperparameters,
@@ -43,7 +59,9 @@ elif choice == "Сделать предсказание":
     st.subheader("Сделать предсказание")
 
     model_id = st.text_input("Введите ID модели")
-    uploaded_file = st.file_uploader("Выберите файл JSON для предсказания", type=["json"])
+    uploaded_file = st.file_uploader(
+        "Выберите файл JSON для предсказания", type=["json"]
+    )
     if uploaded_file is not None and st.button("Предсказать"):
         data = uploaded_file.read()
         response = requests.post(f"{API_URL}/predict/{model_id}", files={"data": data})
@@ -70,7 +88,9 @@ elif choice == "Просмотр предсказаний":
             predictions = response.json().get("predictions", [])
             st.write(predictions)
         else:
-            st.error(f"Ошибка: {response.json().get('detail', 'Не удалось получить предсказания')}")
+            st.error(
+                f"Ошибка: {response.json().get('detail', 'Не удалось получить предсказания')}"
+            )
 
 elif choice == "Обновить модель":
     st.subheader("Обновление модели")
@@ -80,10 +100,12 @@ elif choice == "Обновить модель":
     hyperparameters_input = st.text_area("Введите новые гиперпараметры")
 
     if st.button("Обновить модель"):
-        hyperparameters = json.loads(hyperparameters_input) if hyperparameters_input else {}
+        hyperparameters = (
+            json.loads(hyperparameters_input) if hyperparameters_input else {}
+        )
         update_data = {
             "target_variable": target_variable,
-            "hyperparameters": hyperparameters
+            "hyperparameters": hyperparameters,
         }
         response = requests.put(f"{API_URL}/update-model/{model_id}", json=update_data)
         st.write(response.json())
@@ -96,7 +118,7 @@ elif choice == "Удалить модель":
         response = requests.delete(f"{API_URL}/models/{model_id}")
         st.write(response.json())
 
-elif choice == 'Проверка статуса сервиса':
+elif choice == "Проверка статуса сервиса":
     st.subheader("Проверка статуса")
     if st.button("Проверить статус"):
         response = requests.get(f"{API_URL}/status")
