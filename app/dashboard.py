@@ -7,7 +7,7 @@ API_URL = "http://localhost:8000"
 st.title("Панель управления ML моделями")
 
 st.sidebar.title("Навигация")
-options = ["Загрузить данные", "Обучить модель", "Сделать предсказание", "Просмотр моделей", "Просмотр предсказаний", "Обновить модель", "Удалить модель"]
+options = ["Загрузить данные", "Обучить модель", "Сделать предсказание", "Просмотр моделей", "Просмотр предсказаний", "Обновить модель", "Удалить модель", "Проверка статуса сервиса"]
 choice = st.sidebar.selectbox("Выберите действие", options)
 
 if choice == "Загрузить данные":
@@ -76,8 +76,8 @@ elif choice == "Обновить модель":
     st.subheader("Обновление модели")
 
     model_id = st.text_input("Введите ID модели для обновления")
-    target_variable = st.text_input("Введите новую целевую переменную (необязательно)")
-    hyperparameters_input = st.text_area("Введите новые гиперпараметры (в формате JSON, необязательно)")
+    target_variable = st.text_input("Введите новую целевую переменную")
+    hyperparameters_input = st.text_area("Введите новые гиперпараметры")
 
     if st.button("Обновить модель"):
         hyperparameters = json.loads(hyperparameters_input) if hyperparameters_input else {}
@@ -96,4 +96,14 @@ elif choice == "Удалить модель":
         response = requests.delete(f"{API_URL}/models/{model_id}")
         st.write(response.json())
 
-
+elif choice == 'Проверка статуса сервиса':
+    st.subheader("Проверка статуса")
+    if st.button("Проверить статус"):
+        response = requests.get(f"{API_URL}/status")
+        if response.status_code == 200:
+            status_info = response.json()
+            st.write(f"Статус: {status_info['status']}")
+            st.write(f"Доступная память: {status_info['available_memory']}")
+            st.write(f"Использованная память: {status_info['used_memory']}")
+        else:
+            st.error("Сервис не работает")

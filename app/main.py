@@ -2,6 +2,7 @@ from fastapi import FastAPI, File, UploadFile, HTTPException
 from pydantic import BaseModel
 from typing import List, Dict, Optional
 from ml_service import ModelManager
+import psutil 
 import json
 import logging
 
@@ -25,6 +26,8 @@ class UpdateRequest(BaseModel):
 
 class StatusResponse(BaseModel):
     status: str
+    available_memory: str
+    used_memory: str
 
 uploaded_data_storage = {}
 
@@ -101,8 +104,15 @@ async def delete_model(model_id: str):
 
 @app.get("/status", response_model=StatusResponse)
 async def status():
-    logger.info("Checking service status")
-    return StatusResponse(status="Service is running")
+    memory_info = psutil.virtual_memory()
+    available_memory = f"{memory_info.available / (1024 ** 2):.2f} MB"
+    used_memory = f"{memory_info.used / (1024 ** 2):.2f} MB"
+    
+    return StatusResponse(
+        status="Service is running",
+        available_memory=available_memory,
+        used_memory=used_memory
+    )
 
 
 @app.get("/trained-models")
