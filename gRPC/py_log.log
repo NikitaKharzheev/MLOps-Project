@@ -1,0 +1,11 @@
+2024-11-12 02:12:43,715 INFO ModelServiceServicer initialized
+2024-11-12 02:12:43,716 INFO Server started on port 50051
+2024-11-12 02:12:57,599 INFO Data uploaded successfully
+2024-11-12 02:13:21,359 INFO Training started for model ID: 1d38b2d4-0451-4451-af04-6b79c3ad0e13
+2024-11-12 02:13:32,910 INFO Predictions made for model ID: 1d38b2d4-0451-4451-af04-6b79c3ad0e13
+2024-11-12 02:13:36,120 INFO Listed available models
+2024-11-12 02:13:36,121 INFO Listed trained models
+2024-11-12 02:13:41,795 INFO Predictions retrieved for model ID: 1d38b2d4-0451-4451-af04-6b79c3ad0e13
+2024-11-12 02:14:06,163 INFO Model 1d38b2d4-0451-4451-af04-6b79c3ad0e13 updated successfully
+2024-11-12 02:14:12,220 INFO Model 1d38b2d4-0451-4451-af04-6b79c3ad0e13 deleted successfully
+2024-11-12 02:14:17,027 INFO Received Status request
