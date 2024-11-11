@@ -1,5 +1,5 @@
 [tool.poetry]
-name = "hw1"
+name = "app"
 version = "0.1.0"
 description = "HW 1 for MLops"
 authors = ["Artem, Mikhail, Nikita"]
