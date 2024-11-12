@@ -3,13 +3,14 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import RandomForestClassifier
 import pandas as pd
 
+
 class ModelManager:
     def __init__(self):
         self.models = {}
         self.predictions = {}
         self.available_models = {
             "logistic_regression": LogisticRegression,
-            "random_forest": RandomForestClassifier
+            "random_forest": RandomForestClassifier,
         }
 
     def get_available_models(self):
@@ -26,7 +27,7 @@ class ModelManager:
         model_cls = self.available_models.get(model_type)
         model = model_cls(**hyperparameters)
         model.fit(X, y)
-        
+
         model_id = str(uuid.uuid4())
         self.models[model_id] = model
         self.predictions[model_id] = []
@@ -62,27 +63,33 @@ class ModelManager:
         self.predictions[model_id].extend(predictions)
         return predictions
 
-    def update_model(self, model_id, data_content, hyperparameters=None, target_variable=None):
+    def update_model(
+        self, model_id, data_content, hyperparameters=None, target_variable=None
+    ):
         model = self.models.get(model_id)
         if model is None:
             return False
-        
+
         df = pd.DataFrame(data_content)
         if target_variable and target_variable not in df.columns:
             raise ValueError(f"Target variable '{target_variable}' not found in data")
 
-        X = df.drop(columns=[target_variable]) if target_variable else df.drop(columns=[self.default_target_variable])
+        X = (
+            df.drop(columns=[target_variable])
+            if target_variable
+            else df.drop(columns=[self.default_target_variable])
+        )
         y = df[target_variable] if target_variable else df[self.default_target_variable]
 
         model_cls = type(model)
         model = model_cls(**hyperparameters) if hyperparameters else model
         model.fit(X, y)
-        
+
         self.models[model_id] = model
         return True
 
     def delete_model(self, model_id):
         return self.models.pop(model_id, None) is not None
-    
+
     def get_predictions(self, model_id):
         return self.predictions.get(model_id, None)

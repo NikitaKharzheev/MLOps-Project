@@ -4,7 +4,7 @@ import json
 import model_service_pb2
 import model_service_pb2_grpc
 
-GRPC_SERVER_ADDRESS = 'localhost:50051'
+GRPC_SERVER_ADDRESS = "localhost:50051"
 
 channel = grpc.insecure_channel(GRPC_SERVER_ADDRESS)
 stub = model_service_pb2_grpc.ModelServiceStub(channel)
@@ -12,7 +12,16 @@ stub = model_service_pb2_grpc.ModelServiceStub(channel)
 st.title("Панель управления ML моделями (gRPC)")
 
 st.sidebar.title("Навигация")
-options = ["Загрузить данные", "Обучить модель", "Сделать предсказание", "Просмотр моделей", "Просмотр предсказаний", "Обновить модель", "Удалить модель", "Проверка статуса сервиса"]
+options = [
+    "Загрузить данные",
+    "Обучить модель",
+    "Сделать предсказание",
+    "Просмотр моделей",
+    "Просмотр предсказаний",
+    "Обновить модель",
+    "Удалить модель",
+    "Проверка статуса сервиса",
+]
 choice = st.sidebar.selectbox("Выберите действие", options)
 
 if choice == "Загрузить данные":
@@ -32,16 +41,20 @@ if choice == "Загрузить данные":
 
 elif choice == "Обучить модель":
     st.subheader("Обучение модели")
-    model_type = st.selectbox("Выберите тип модели", ["logistic_regression", "random_forest"])
+    model_type = st.selectbox(
+        "Выберите тип модели", ["logistic_regression", "random_forest"]
+    )
     target_variable = st.text_input("Введите целевую переменную")
     hyperparameters_input = st.text_area("Введите гиперпараметры")
     if st.button("Обучить"):
         try:
-            hyperparameters = json.loads(hyperparameters_input) if hyperparameters_input else {}
+            hyperparameters = (
+                json.loads(hyperparameters_input) if hyperparameters_input else {}
+            )
             request = model_service_pb2.TrainModelRequest(
                 model_type=model_type,
                 hyperparameters=hyperparameters,
-                target_variable=target_variable
+                target_variable=target_variable,
             )
             response = stub.TrainModel(request)
             st.success(f"Обучение запущено, ID модели: {response.model_id}")
@@ -53,12 +66,16 @@ elif choice == "Обучить модель":
 elif choice == "Сделать предсказание":
     st.subheader("Сделать предсказание")
     model_id = st.text_input("Введите ID модели")
-    uploaded_file = st.file_uploader("Выберите файл JSON для предсказания", type=["json"])
+    uploaded_file = st.file_uploader(
+        "Выберите файл JSON для предсказания", type=["json"]
+    )
     if uploaded_file is not None and st.button("Предсказать"):
         try:
             data = json.load(uploaded_file)
             data_json = json.dumps(data)
-            request = model_service_pb2.PredictRequest(model_id=model_id, data=data_json)
+            request = model_service_pb2.PredictRequest(
+                model_id=model_id, data=data_json
+            )
             response = stub.Predict(request)
             st.write("Предсказания:", response.prediction)
         except json.JSONDecodeError:
@@ -93,7 +110,6 @@ elif choice == "Просмотр предсказаний":
             st.error(f"Ошибка: {e.details()}")
 
 
-
 elif choice == "Обновить модель":
     st.subheader("Обновление модели")
 
@@ -103,11 +119,13 @@ elif choice == "Обновить модель":
 
     if st.button("Обновить модель"):
         try:
-            hyperparameters = json.loads(hyperparameters_input) if hyperparameters_input else {}
+            hyperparameters = (
+                json.loads(hyperparameters_input) if hyperparameters_input else {}
+            )
             request = model_service_pb2.UpdateModelRequest(
                 model_id=model_id,
                 target_variable=target_variable,
-                hyperparameters=hyperparameters
+                hyperparameters=hyperparameters,
             )
             response = stub.UpdateModel(request)
             st.success(response.message)
@@ -134,13 +152,6 @@ elif choice == "Проверка статуса сервиса":
     if st.button("Проверить статус"):
         try:
             response = stub.Status(model_service_pb2.Empty())
-            st.write("Статус сервиса:", response.status)  
+            st.write("Статус сервиса:", response.status)
         except grpc.RpcError as e:
             st.error(f"Ошибка: {e.details()}")
-
-
-
-
-
-
-
