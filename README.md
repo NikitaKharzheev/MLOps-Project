@@ -21,11 +21,18 @@
 git clone https://github.com/NikitaKharzheev/MLOps-Project.git
 ```
 
-### 3. Установка зависимостей с использованием Poetry
+### 2. Установка зависимостей с использованием Poetry
 
 Установите зависимости, указанные в pyproject.toml, с помощью команды:
 ```bash
 poetry install
+```
+
+### 3. Переход в директорию проекта
+
+Переходите в директорию проекта с помощью команды:
+```bash
+cd MLOps-Project/app
 ```
 
 ### 4. Запуск сервера FastAPI
@@ -107,7 +114,7 @@ uvicorn main:app --reload
 Для запуска Streamlit дашборда выполните следующую команду:
 
 ```bash
-streamlit run app/dashboard.py
+streamlit run dashboard.py
 ```
 
 После запуска Streamlit дашборда будет доступен по адресу http://127.0.0.1:8501.
@@ -117,7 +124,7 @@ streamlit run app/dashboard.py
 Для запуска gRPC-сервера выполните следующую команду:
 
 ```bash
-python gRPC/grpc_server.py
+python grpc_server.py
 ```
 
 ### 9. Запуск Streamlit для дашборда с gRPC-сервером
@@ -125,7 +132,7 @@ python gRPC/grpc_server.py
 Для запуска Streamlit дашборда с gRPC-сервером выполните следующую команду:
 
 ```bash
-streamlit run grpc/grpc_dashboard.py
+streamlit run grpc_dashboard.py
 ```
 
 
