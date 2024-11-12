@@ -112,6 +112,22 @@ streamlit run app/dashboard.py
 
 После запуска Streamlit дашборда будет доступен по адресу http://127.0.0.1:8501.
 
+### 8. Запуск gRPC-сервера
+
+Для запуска gRPC-сервера выполните следующую команду:
+
+```bash
+python gRPC/grpc_server.py
+```
+
+### 9. Запуск Streamlit для дашборда с gRPC-сервером
+
+Для запуска Streamlit дашборда с gRPC-сервером выполните следующую команду:
+
+```bash
+streamlit run grpc/grpc_dashboard.py
+```
+
 
 
 
