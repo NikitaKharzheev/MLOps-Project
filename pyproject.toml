@@ -14,7 +14,7 @@ scikit-learn = "^1.5.2"
 grpcio = "^1.67.1"
 grpcio-tools = "^1.67.1"
 psutil = "^6.1.0"
-
+python-multipart = "^0.0.17"
 
 [build-system]
 requires = ["poetry-core"]
