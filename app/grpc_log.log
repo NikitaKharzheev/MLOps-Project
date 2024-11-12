@@ -1,0 +1,4 @@
+2024-11-12 12:25:10,225 INFO ModelServiceServicer initialized
+2024-11-12 12:25:10,227 INFO Server started on port 50051
+2024-11-12 12:26:26,267 INFO Data uploaded successfully
+2024-11-12 12:26:35,256 INFO Training started for model ID: f0200301-3b9c-4892-abec-b33ba7b1fb0e
