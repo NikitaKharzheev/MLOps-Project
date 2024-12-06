@@ -84,7 +84,7 @@ async def train_model(train_request: TrainRequest):
         with open(tmp_file_path, "r") as f:
             data_content = json.load(f)
 
-        model_id = model_manager.train_model(
+        model_id, trained_model = model_manager.train_model(
             model_type=train_request.model_type,
             hyperparameters=train_request.hyperparameters,
             data_content=data_content,
@@ -95,7 +95,7 @@ async def train_model(train_request: TrainRequest):
             delete=False, suffix=".joblib"
         ) as model_tmp_file:
             model_tmp_path = model_tmp_file.name
-            model_manager.save_model(model_id, model_tmp_path)
+            model_manager.save_model(trained_model, model_tmp_path)
 
         upload_to_s3(model_tmp_path, f"models/{model_id}.joblib")
         os.remove(model_tmp_path)
