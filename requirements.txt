@@ -6,3 +6,4 @@ grpcio==1.67.1
 grpcio-tools==1.67.1
 psutil==6.1.0
 python-multipart==0.0.17
+boto3 == 1.21.21
