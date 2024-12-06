@@ -56,13 +56,13 @@ async def upload_data(data: UploadFile = File(...)):
         with tempfile.NamedTemporaryFile(delete=False, suffix=".json") as tmp_file:
             tmp_file.write(await data.read())
             tmp_file_path = tmp_file.name
-        
+
         upload_to_s3(tmp_file_path, f"data/{data.filename}")
-        
+
     finally:
         if tmp_file_path:
             os.remove(tmp_file_path)
-    
+
     return {"message": f"File {data.filename} uploaded successfully"}
 
 
@@ -72,33 +72,38 @@ async def train_model(train_request: TrainRequest):
     Trains a model using data stored in MinIO.
     """
     logger.info("Received training request")
-    data_key = "data/iris.json"  # Change to dynamic if needed
-    local_data_path = f"/tmp/{os.path.basename(data_key)}"
+    data_key = "data/iris.json"
+    tmp_file_path = None
 
     try:
-        download_from_s3(data_key, local_data_path)
-    except Exception as e:
-        logger.error(f"Failed to download dataset from MinIO: {e}")
-        raise HTTPException(status_code=400, detail="Dataset not found in MinIO")
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".json") as tmp_file:
+            tmp_file_path = tmp_file.name
 
-    # Read data from the downloaded file
-    with open(local_data_path, "r") as f:
-        data_content = json.load(f)
-    os.remove(local_data_path)
+        download_from_s3(data_key, tmp_file_path)
 
-    # Train the model
-    model_id, trained_model = model_manager.train_model(
-        model_type=train_request.model_type,
-        hyperparameters=train_request.hyperparameters,
-        data_content=data_content,
-        target_variable=train_request.target_variable,
-    )
+        with open(tmp_file_path, "r") as f:
+            data_content = json.load(f)
 
-    # Save model to MinIO
-    model_path = f"/tmp/{model_id}.joblib"
-    model_manager.save_model(trained_model, model_path)
-    upload_to_s3(model_path, f"models/{model_id}.joblib")
-    os.remove(model_path)
+        model_id = model_manager.train_model(
+            model_type=train_request.model_type,
+            hyperparameters=train_request.hyperparameters,
+            data_content=data_content,
+            target_variable=train_request.target_variable,
+        )
+
+        with tempfile.NamedTemporaryFile(
+            delete=False, suffix=".joblib"
+        ) as model_tmp_file:
+            model_tmp_path = model_tmp_file.name
+            model_manager.save_model(model_id, model_tmp_path)
+
+        upload_to_s3(model_tmp_path, f"models/{model_id}.joblib")
+        os.remove(model_tmp_path)
+
+    finally:
+        if tmp_file_path:
+            os.remove(tmp_file_path)
+
     logger.info(f"Model {model_id} trained and saved to MinIO")
     return {"message": "Training completed", "model_id": model_id}
 
@@ -125,35 +130,37 @@ async def predict(model_id: str, data: UploadFile = File(...)):
     """
     logger.info(f"Received prediction request for model {model_id}")
     model_key = f"models/{model_id}.joblib"
-    local_model_path = f"/tmp/{model_id}.joblib"
+    tmp_model_path = None
+    tmp_data_path = None
 
-    # Download model from MinIO
     try:
-        download_from_s3(model_key, local_model_path)
-    except Exception as e:
-        logger.error(f"Model {model_id} not found in MinIO: {e}")
-        raise HTTPException(status_code=404, detail="Model not found")
+        # Создаём временный файл для модели
+        with tempfile.NamedTemporaryFile(
+            delete=False, suffix=".joblib"
+        ) as model_tmp_file:
+            tmp_model_path = model_tmp_file.name
 
-    # Read input data
-    file_path = f"/tmp/{data.filename}"
-    with open(file_path, "wb") as f:
-        f.write(await data.read())
-    with open(file_path, "r") as f:
-        data_content = json.load(f)
-    os.remove(file_path)
+        # Скачиваем модель из MinIO
+        download_from_s3(model_key, tmp_model_path)
 
-    # Make predictions
-    prediction = model_manager.predict(model_id, data_content, local_model_path)
+        # Создаём временный файл для данных
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".json") as data_tmp_file:
+            tmp_data_path = data_tmp_file.name
+            data_tmp_file.write(await data.read())
 
-    # Save prediction to a file
-    prediction_file_path = f"/tmp/{model_id}"
-    with open(prediction_file_path, "w") as pred_file:
-        json.dump({f"{model_id}": prediction}, pred_file)
-    upload_to_s3(prediction_file_path, f"predictions/{model_id}")
-    os.remove(prediction_file_path)
+        # Читаем данные из временного файла
+        with open(tmp_data_path, "r") as f:
+            data_content = json.load(f)
 
-    logger.info(f"Prediction saved to {prediction_file_path}")
-    os.remove(local_model_path)
+        # Делаем предсказания
+        prediction = model_manager.predict(model_id, data_content, tmp_model_path)
+
+    finally:
+        # Удаляем временные файлы
+        if tmp_model_path:
+            os.remove(tmp_model_path)
+        if tmp_data_path:
+            os.remove(tmp_data_path)
 
     return {"prediction": prediction}
 

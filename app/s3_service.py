@@ -1,4 +1,5 @@
 import boto3
+import os
 from botocore.exceptions import NoCredentialsError
 from config import S3_ENDPOINT_URL, S3_ACCESS_KEY, S3_SECRET_KEY, S3_BUCKET_NAME
 
@@ -27,8 +28,13 @@ def upload_to_s3(file_path: str, s3_key: str):
 
 
 def download_from_s3(s3_key: str, download_path: str):
+    """
+    Downloads a file from MinIO to the specified path.
+    """
     try:
+        os.makedirs(os.path.dirname(download_path), exist_ok=True)
         s3_client.download_file(S3_BUCKET_NAME, s3_key, download_path)
+        print(f"Downloaded {s3_key} to {download_path}")
     except Exception as e:
         raise ValueError(f"Failed to download file: {e}")
 
