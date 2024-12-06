@@ -12,6 +12,7 @@ import psutil
 import json
 import os
 import logging
+import tempfile
 
 app = FastAPI()
 logging.basicConfig(
@@ -49,17 +50,19 @@ class StatusResponse(BaseModel):
 @app.post("/upload-data")
 async def upload_data(data: UploadFile = File(...)):
     """
-    Uploads a JSON file containing data for training or prediction.
+    Uploads a JSON file to MinIO.
     """
-    logger.info("Received data upload request")
-    file_path = f"/tmp/{data.filename}"
-    with open(file_path, "wb") as f:
-        f.write(await data.read())
-
-    # Upload the file to MinIO
-    upload_to_s3(file_path, f"data/{data.filename}")
-    os.remove(file_path)  # Clean up local file
-    logger.info(f"File {data.filename} uploaded to MinIO in 'data/' folder")
+    try:
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".json") as tmp_file:
+            tmp_file.write(await data.read())
+            tmp_file_path = tmp_file.name
+        
+        upload_to_s3(tmp_file_path, f"data/{data.filename}")
+        
+    finally:
+        if tmp_file_path:
+            os.remove(tmp_file_path)
+    
     return {"message": f"File {data.filename} uploaded successfully"}
 
 
