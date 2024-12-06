@@ -85,7 +85,7 @@ elif choice == "Просмотр предсказаний":
     if st.button("Получить предсказания"):
         response = requests.get(f"{API_URL}/prediction/{model_id}")
         if response.status_code == 200:
-            predictions = response.json().get("predictions", [])
+            predictions = response.json().get(f"{model_id}", [])
             st.write(predictions)
         else:
             st.error(
@@ -96,6 +96,9 @@ elif choice == "Обновить модель":
     st.subheader("Обновление модели")
 
     model_id = st.text_input("Введите ID модели для обновления")
+    model_type = st.selectbox(
+        "Выберите тип модели", ["logistic_regression", "random_forest"]
+    )
     target_variable = st.text_input("Введите новую целевую переменную")
     hyperparameters_input = st.text_area("Введите новые гиперпараметры")
 
@@ -104,6 +107,7 @@ elif choice == "Обновить модель":
             json.loads(hyperparameters_input) if hyperparameters_input else {}
         )
         update_data = {
+            "model_type": model_type,
             "target_variable": target_variable,
             "hyperparameters": hyperparameters,
         }
