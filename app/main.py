@@ -123,45 +123,46 @@ async def list_available_models():
     return model_manager.get_available_models()
 
 
+import tempfile
+
+
 @app.post("/predict/{model_id}")
 async def predict(model_id: str, data: UploadFile = File(...)):
-    """
-    Makes predictions using a specified model.
-    """
     logger.info(f"Received prediction request for model {model_id}")
     model_key = f"models/{model_id}.joblib"
-    tmp_model_path = None
-    tmp_data_path = None
 
-    try:
-        # Создаём временный файл для модели
-        with tempfile.NamedTemporaryFile(
-            delete=False, suffix=".joblib"
-        ) as model_tmp_file:
-            tmp_model_path = model_tmp_file.name
+    with tempfile.TemporaryDirectory() as temp_dir:
+        model_path = os.path.join(temp_dir, "model.joblib")
+        data_path = os.path.join(temp_dir, "data.json")
+        prediction_path = os.path.join(temp_dir, "prediction.json")
 
-        # Скачиваем модель из MinIO
-        download_from_s3(model_key, tmp_model_path)
+        try:
+            # Скачиваем модель из MinIO
+            download_from_s3(model_key, model_path)
 
-        # Создаём временный файл для данных
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".json") as data_tmp_file:
-            tmp_data_path = data_tmp_file.name
-            data_tmp_file.write(await data.read())
+            # Сохраняем входные данные
+            with open(data_path, "wb") as data_file:
+                data_file.write(await data.read())
 
-        # Читаем данные из временного файла
-        with open(tmp_data_path, "r") as f:
-            data_content = json.load(f)
+            # Читаем данные для предсказания
+            with open(data_path, "r") as f:
+                data_content = json.load(f)
 
-        # Делаем предсказания
-        prediction = model_manager.predict(model_id, data_content, tmp_model_path)
+            # Делаем предсказания
+            prediction = model_manager.predict(model_id, data_content, model_path)
 
-    finally:
-        # Удаляем временные файлы
-        if tmp_model_path:
-            os.remove(tmp_model_path)
-        if tmp_data_path:
-            os.remove(tmp_data_path)
+            # Сохраняем предсказания
+            with open(prediction_path, "w") as pred_file:
+                json.dump({f"{model_id}": prediction}, pred_file)
 
+            # Загружаем предсказания в MinIO
+            upload_to_s3(prediction_path, f"predictions/{model_id}")
+
+        except Exception as e:
+            logger.error(f"Failed to process prediction: {e}")
+            raise HTTPException(status_code=500, detail="Prediction failed")
+
+    logger.info(f"Prediction saved to MinIO for model {model_id}")
     return {"prediction": prediction}
 
 
@@ -208,75 +209,83 @@ async def list_trained_models():
     return {"trained_models": trained_models}
 
 
+import tempfile
+import os
+from fastapi import HTTPException
+
+
 @app.get("/prediction/{model_id}")
 async def get_predictions(model_id: str):
     """
     Retrieves the saved predictions for a given model ID.
-
-    Args:
-        model_id: The unique identifier of the model.
-
-    Returns:
-        A JSON response containing the saved predictions.
-
-    Raises:
-        HTTPException: If the model ID is not found in MinIO or
-            no predictions are available.
     """
     logger.info(f"Fetching saved predictions for model {model_id}")
     model_key = f"predictions/{model_id}"
-    local_predictions_path = f"/tmp/{model_id}"
 
-    # Download predictions from MinIO
-    try:
-        download_from_s3(model_key, local_predictions_path)
-    except Exception as e:
-        logger.error(f"Prediction for model {model_id} not found in MinIO: {e}")
-        raise HTTPException(status_code=404, detail="Prediction not found")
+    # Создаём временную директорию для предсказаний
+    with tempfile.TemporaryDirectory() as temp_dir:
+        prediction_path = os.path.join(temp_dir, "prediction.json")
 
-    with open(local_predictions_path, "r") as f:
-        saved_predictions = json.load(f)
-    os.remove(local_predictions_path)
+        try:
+            # Скачиваем предсказания из MinIO
+            download_from_s3(model_key, prediction_path)
 
-    if saved_predictions is None:
-        logger.error(f"Predictions not found for model {model_id}")
-        raise HTTPException(
-            status_code=404, detail="Model not found or no predictions available"
-        )
+            # Читаем предсказания
+            with open(prediction_path, "r") as f:
+                saved_predictions = json.load(f)
+
+        except Exception as e:
+            logger.error(f"Prediction for model {model_id} not found in MinIO: {e}")
+            raise HTTPException(status_code=404, detail="Prediction not found")
+
+        if not saved_predictions:
+            logger.error(f"Predictions not found for model {model_id}")
+            raise HTTPException(
+                status_code=404, detail="Model not found or no predictions available"
+            )
 
     return saved_predictions
 
 
 @app.put("/update-model/{model_id}")
 async def update_model(model_id: str, update_request: UpdateRequest):
+    """
+    Updates an existing model using new data and hyperparameters.
+    """
     logger.info(f"Received update request for model {model_id}")
-    data_key = "data/iris.json"  # Change to dynamic if needed
-    local_data_path = f"/tmp/{os.path.basename(data_key)}"
+    data_key = "data/iris.json"  # Это можно сделать динамическим
 
-    try:
-        download_from_s3(data_key, local_data_path)
-    except Exception as e:
-        logger.error(f"Failed to download dataset from MinIO: {e}")
-        raise HTTPException(status_code=400, detail="Dataset not found in MinIO")
+    # Создаём временную директорию для данных и модели
+    with tempfile.TemporaryDirectory() as temp_dir:
+        data_path = os.path.join(temp_dir, "data.json")
+        model_path = os.path.join(temp_dir, "model.joblib")
 
-    # Read data from the downloaded file
-    with open(local_data_path, "r") as f:
-        data_content = json.load(f)
-    os.remove(local_data_path)
+        try:
+            # Скачиваем данные из MinIO
+            download_from_s3(data_key, data_path)
 
-    # Train the model
-    model_id, trained_model = model_manager.update_model(
-        model_id=model_id,
-        model_type=update_request.model_type,
-        hyperparameters=update_request.hyperparameters,
-        data_content=data_content,
-        target_variable=update_request.target_variable,
-    )
+            # Читаем данные
+            with open(data_path, "r") as f:
+                data_content = json.load(f)
 
-    # Save model to MinIO
-    model_path = f"/tmp/{model_id}.joblib"
-    model_manager.save_model(trained_model, model_path)
-    upload_to_s3(model_path, f"models/{model_id}.joblib")
-    os.remove(model_path)
+            # Обновляем модель
+            model_id, trained_model = model_manager.update_model(
+                model_id=model_id,
+                model_type=update_request.model_type,
+                hyperparameters=update_request.hyperparameters,
+                data_content=data_content,
+                target_variable=update_request.target_variable,
+            )
+
+            # Сохраняем модель во временный файл
+            model_manager.save_model(trained_model, model_path)
+
+            # Загружаем обновлённую модель в MinIO
+            upload_to_s3(model_path, f"models/{model_id}.joblib")
+
+        except Exception as e:
+            logger.error(f"Failed to update model {model_id}: {e}")
+            raise HTTPException(status_code=500, detail="Failed to update model")
+
     logger.info(f"Model {model_id} updated and saved to MinIO")
     return {"message": "Updating completed", "model_id": model_id}
