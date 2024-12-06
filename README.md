@@ -62,7 +62,7 @@ uvicorn main:app --reload
     Параметры в теле запроса:  
     model_type: тип модели (например, logistic_regression, random_forest).  
     hyperparameters: гиперпараметры для модели.  
-    target_variable: имя целевой переменной в загруженных данных ("Species" для файла iris.json).  
+    target_variable: имя целевой переменной в загруженных данных ("species" для файла iris.json).  
     Описание: Обучает модель с указанными параметрами на загруженных данных.
 
 - Получение предсказаний:
