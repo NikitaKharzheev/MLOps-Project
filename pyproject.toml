@@ -15,7 +15,9 @@ grpcio = "^1.67.1"
 grpcio-tools = "^1.67.1"
 psutil = "^6.1.0"
 python-multipart = "^0.0.17"
-boto3 = "^1.35.75"
+boto3 = "1.21.21"
+dvc = {version = "2.10.*", extras = ["s3"]}
+clearml = "^1.16.5"
 
 [tool.poetry.group.dev.dependencies]
 ipykernel = "^6.29.5"
