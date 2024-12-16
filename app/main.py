@@ -13,6 +13,8 @@ import json
 import os
 import logging
 import tempfile
+import subprocess
+import shutil
 
 app = FastAPI()
 logging.basicConfig(
@@ -47,43 +49,111 @@ class StatusResponse(BaseModel):
     used_memory: str
 
 
+def run_dvc_command(command: List[str]):
+    """
+    Utility function to run DVC commands.
+    """
+    try:
+        result = subprocess.run(command, capture_output=True, text=True, check=True)
+        logger.info(f"DVC Command succeeded: {' '.join(command)}")
+        return result.stdout.strip()
+    except subprocess.CalledProcessError as e:
+        logger.error(f"DVC Command failed: {' '.join(command)}\n{e.stderr}")
+        raise HTTPException(status_code=500, detail=f"DVC command failed: {e.stderr}")
+
+
+def clean_datasets_folder():
+    """
+    Удаляет все файлы и подпапки в папке datasets/.
+    """
+    datasets_dir = os.path.join(os.getcwd(), "datasets")
+    if os.path.exists(datasets_dir):
+        shutil.rmtree(datasets_dir)
+        os.makedirs(datasets_dir)
+        logger.info("Cleaned up the datasets folder.")
+
+
 @app.post("/upload-data")
 async def upload_data(data: UploadFile = File(...)):
     """
-    Uploads a JSON file to MinIO.
+    Uploads a dataset to DVC and S3, including its .dvc file.
     """
-    try:
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".json") as tmp_file:
-            tmp_file.write(await data.read())
-            tmp_file_path = tmp_file.name
+    datasets_dir = os.path.join(os.getcwd(), "datasets")
+    os.makedirs(datasets_dir, exist_ok=True)
 
-        upload_to_s3(tmp_file_path, f"data/{data.filename}")
+    try:
+        dataset_path = os.path.join(datasets_dir, data.filename)
+
+        # Сохраняем файл локально
+        with open(dataset_path, "wb") as f:
+            f.write(await data.read())
+
+        logger.info(f"Dataset saved locally at {dataset_path}")
+
+        # Добавляем файл в DVC
+        logger.info(f"Adding {dataset_path} to DVC")
+        run_dvc_command(["dvc", "add", dataset_path])
+        logger.info(f"Dataset {dataset_path} added to DVC")
+
+        # Получаем путь к .dvc файлу
+        dvc_file_path = f"{dataset_path}.dvc"
+
+        # Push файла и его метаданных в удалённое хранилище
+        run_dvc_command(["dvc", "push"])
+        logger.info(f"Dataset {dataset_path} pushed to remote storage")
+
+        # Загружаем .dvc файл в S3
+        logger.info(f"Uploading {dvc_file_path} to S3")
+        upload_to_s3(dvc_file_path, f"dvc/{os.path.basename(dvc_file_path)}")
+
+    except subprocess.CalledProcessError as e:
+        logger.error(f"DVC command failed: {e.stderr}")
+        raise HTTPException(status_code=500, detail=f"DVC command failed: {e.stderr}")
+
+    except Exception as e:
+        logger.error(f"Failed to upload dataset: {e}")
+        raise HTTPException(status_code=500, detail="Failed to upload dataset")
 
     finally:
-        if tmp_file_path:
-            os.remove(tmp_file_path)
+        clean_datasets_folder()
 
-    return {"message": f"File {data.filename} uploaded successfully"}
+    return {
+        "message": "Dataset uploaded and versioned successfully",
+        "dvc_file": f"dvc/{os.path.basename(dvc_file_path)}",
+    }
 
 
 @app.post("/train")
 async def train_model(train_request: TrainRequest):
     """
-    Trains a model using data stored in MinIO.
+    Trains a model using data stored in DVC.
     """
     logger.info("Received training request")
-    data_key = "data/iris.json"
-    tmp_file_path = None
+
+    datasets_dir = os.path.join(os.getcwd(), "datasets")
+    os.makedirs(datasets_dir, exist_ok=True)
 
     try:
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".json") as tmp_file:
-            tmp_file_path = tmp_file.name
+        dvc_file_path = os.path.join(datasets_dir, "iris.json.dvc")
+        dataset_path = os.path.join(datasets_dir, "iris.json")
+        model_path = os.path.join(datasets_dir, "model.joblib")
+        dvc_file = "dvc/iris.json.dvc"
 
-        download_from_s3(data_key, tmp_file_path)
+        # Скачиваем .dvc файл из S3
+        logger.info(f"Downloading .dvc file {dvc_file} from S3")
+        download_from_s3(dvc_file, dvc_file_path)
+        logger.info(f".dvc file {dvc_file} downloaded successfully")
 
-        with open(tmp_file_path, "r") as f:
+        # Используем DVC для загрузки датасета
+        logger.info("Pulling dataset from remote storage using DVC")
+        run_dvc_command(["dvc", "pull"])
+        logger.info("Dataset pulled successfully from DVC")
+
+        # Читаем данные
+        with open(dataset_path, "r") as f:
             data_content = json.load(f)
 
+        # Обучение модели
         model_id, trained_model = model_manager.train_model(
             model_type=train_request.model_type,
             hyperparameters=train_request.hyperparameters,
@@ -91,20 +161,25 @@ async def train_model(train_request: TrainRequest):
             target_variable=train_request.target_variable,
         )
 
-        with tempfile.NamedTemporaryFile(
-            delete=False, suffix=".joblib"
-        ) as model_tmp_file:
-            model_tmp_path = model_tmp_file.name
-            model_manager.save_model(trained_model, model_tmp_path)
+        # Сохраняем обученную модель
+        model_manager.save_model(trained_model, model_path)
 
-        upload_to_s3(model_tmp_path, f"models/{model_id}.joblib")
-        os.remove(model_tmp_path)
+        # Загружаем модель в S3
+        logger.info(f"Uploading trained model {model_id} to S3")
+        upload_to_s3(model_path, f"models/{model_id}.joblib")
+
+    except subprocess.CalledProcessError as e:
+        logger.error(f"DVC command failed: {e.stderr}")
+        raise HTTPException(status_code=500, detail=f"DVC command failed: {e.stderr}")
+
+    except Exception as e:
+        logger.error(f"Failed to train model: {e}")
+        raise HTTPException(status_code=500, detail="Failed to train model")
 
     finally:
-        if tmp_file_path:
-            os.remove(tmp_file_path)
+        clean_datasets_folder()
 
-    logger.info(f"Model {model_id} trained and saved to MinIO")
+    logger.info(f"Model {model_id} trained and saved to S3")
     return {"message": "Training completed", "model_id": model_id}
 
 
@@ -123,46 +198,52 @@ async def list_available_models():
     return model_manager.get_available_models()
 
 
-import tempfile
-
-
 @app.post("/predict/{model_id}")
 async def predict(model_id: str, data: UploadFile = File(...)):
+    """
+    Makes predictions using a specified model.
+    """
     logger.info(f"Received prediction request for model {model_id}")
+
     model_key = f"models/{model_id}.joblib"
+    datasets_dir = os.path.join(os.getcwd(), "datasets")
+    os.makedirs(datasets_dir, exist_ok=True)
 
-    with tempfile.TemporaryDirectory() as temp_dir:
-        model_path = os.path.join(temp_dir, "model.joblib")
-        data_path = os.path.join(temp_dir, "data.json")
-        prediction_path = os.path.join(temp_dir, "prediction.json")
+    try:
+        model_path = os.path.join(datasets_dir, "model.joblib")
+        data_path = os.path.join(datasets_dir, "data.json")
+        prediction_path = os.path.join(datasets_dir, "prediction.json")
 
-        try:
-            # Скачиваем модель из MinIO
-            download_from_s3(model_key, model_path)
+        # Скачиваем модель из MinIO
+        download_from_s3(model_key, model_path)
+        logger.info(f"Model {model_id} downloaded successfully")
 
-            # Сохраняем входные данные
-            with open(data_path, "wb") as data_file:
-                data_file.write(await data.read())
+        # Сохраняем входные данные во временный файл
+        with open(data_path, "wb") as data_file:
+            data_file.write(await data.read())
 
-            # Читаем данные для предсказания
-            with open(data_path, "r") as f:
-                data_content = json.load(f)
+        # Читаем данные для предсказания
+        with open(data_path, "r") as f:
+            data_content = json.load(f)
 
-            # Делаем предсказания
-            prediction = model_manager.predict(model_id, data_content, model_path)
+        # Делаем предсказания
+        prediction = model_manager.predict(model_id, data_content, model_path)
 
-            # Сохраняем предсказания
-            with open(prediction_path, "w") as pred_file:
-                json.dump({f"{model_id}": prediction}, pred_file)
+        # Сохраняем предсказания
+        with open(prediction_path, "w") as pred_file:
+            json.dump({f"{model_id}": prediction}, pred_file)
 
-            # Загружаем предсказания в MinIO
-            upload_to_s3(prediction_path, f"predictions/{model_id}")
+        # Загружаем предсказания в MinIO
+        upload_to_s3(prediction_path, f"predictions/{model_id}")
 
-        except Exception as e:
-            logger.error(f"Failed to process prediction: {e}")
-            raise HTTPException(status_code=500, detail="Prediction failed")
+    except Exception as e:
+        logger.error(f"Failed to process prediction: {e}")
+        raise HTTPException(status_code=500, detail="Prediction failed")
 
-    logger.info(f"Prediction saved to MinIO for model {model_id}")
+    finally:
+        clean_datasets_folder()
+
+    logger.info(f"Prediction for model {model_id} saved to MinIO")
     return {"prediction": prediction}
 
 
@@ -204,14 +285,9 @@ async def list_trained_models():
     logger.info("Listing trained models")
     try:
         trained_models = get_list_from_bucket("models/")
-    except Exception as e:
+    except Exception:
         raise HTTPException(status_code=404, detail="No trained models found")
     return {"trained_models": trained_models}
-
-
-import tempfile
-import os
-from fastapi import HTTPException
 
 
 @app.get("/prediction/{model_id}")
@@ -253,39 +329,55 @@ async def update_model(model_id: str, update_request: UpdateRequest):
     Updates an existing model using new data and hyperparameters.
     """
     logger.info(f"Received update request for model {model_id}")
-    data_key = "data/iris.json"  # Это можно сделать динамическим
 
-    # Создаём временную директорию для данных и модели
-    with tempfile.TemporaryDirectory() as temp_dir:
-        data_path = os.path.join(temp_dir, "data.json")
-        model_path = os.path.join(temp_dir, "model.joblib")
+    datasets_dir = os.path.join(os.getcwd(), "datasets")
+    os.makedirs(datasets_dir, exist_ok=True)
 
-        try:
-            # Скачиваем данные из MinIO
-            download_from_s3(data_key, data_path)
+    try:
+        dvc_file_path = os.path.join(datasets_dir, "iris.json.dvc")
+        dataset_path = os.path.join(datasets_dir, "iris.json")
+        model_path = os.path.join(datasets_dir, "updated_model.joblib")
+        dvc_file = "dvc/iris.json.dvc"
 
-            # Читаем данные
-            with open(data_path, "r") as f:
-                data_content = json.load(f)
+        # Скачиваем .dvc файл из S3
+        logger.info(f"Downloading .dvc file {dvc_file} from S3")
+        download_from_s3(dvc_file, dvc_file_path)
+        logger.info(f".dvc file {dvc_file} downloaded successfully")
 
-            # Обновляем модель
-            model_id, trained_model = model_manager.update_model(
-                model_id=model_id,
-                model_type=update_request.model_type,
-                hyperparameters=update_request.hyperparameters,
-                data_content=data_content,
-                target_variable=update_request.target_variable,
-            )
+        # Используем DVC для загрузки датасета
+        logger.info("Pulling dataset from remote storage using DVC")
+        run_dvc_command(["dvc", "pull"])
+        logger.info("Dataset pulled successfully from DVC")
 
-            # Сохраняем модель во временный файл
-            model_manager.save_model(trained_model, model_path)
+        # Читаем данные
+        with open(dataset_path, "r") as f:
+            data_content = json.load(f)
 
-            # Загружаем обновлённую модель в MinIO
-            upload_to_s3(model_path, f"models/{model_id}.joblib")
+        # Обновляем модель
+        updated_model_id, updated_model = model_manager.update_model(
+            model_id=model_id,
+            model_type=update_request.model_type,
+            hyperparameters=update_request.hyperparameters,
+            data_content=data_content,
+            target_variable=update_request.target_variable,
+        )
 
-        except Exception as e:
-            logger.error(f"Failed to update model {model_id}: {e}")
-            raise HTTPException(status_code=500, detail="Failed to update model")
+        # Сохраняем обновлённую модель
+        model_manager.save_model(updated_model, model_path)
 
-    logger.info(f"Model {model_id} updated and saved to MinIO")
-    return {"message": "Updating completed", "model_id": model_id}
+        # Загружаем обновлённую модель в MinIO
+        upload_to_s3(model_path, f"models/{updated_model_id}.joblib")
+
+    except subprocess.CalledProcessError as e:
+        logger.error(f"DVC command failed: {e.stderr}")
+        raise HTTPException(status_code=500, detail=f"DVC command failed: {e.stderr}")
+
+    except Exception as e:
+        logger.error(f"Failed to update model {model_id}: {e}")
+        raise HTTPException(status_code=500, detail="Failed to update model")
+
+    finally:
+        clean_datasets_folder()
+
+    logger.info(f"Model {updated_model_id} updated and saved to MinIO")
+    return {"message": "Model updated successfully", "model_id": updated_model_id}
