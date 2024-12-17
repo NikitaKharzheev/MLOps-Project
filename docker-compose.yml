@@ -25,6 +25,9 @@ services:
       S3_ACCESS_KEY: minioadmin
       S3_SECRET_KEY: minioadmin
       S3_BUCKET_NAME: mlops-bucket
+      CLEARML_API_ACCESS_KEY: LSPZ4F9M19HVLNGGYGT5GKE80PQG22
+      CLEARML_API_SECRET_KEY: m0_TvqY7G2qW91KCqn6kdfB8QMGyKioqUWJ19YBLC8jrgFZvwqITF2kdTSSiGrYQDjw
+      CLEARML_API_SERVER: https://app.clear.ml
     depends_on:
       - minio
 
