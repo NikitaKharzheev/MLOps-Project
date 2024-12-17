@@ -15,6 +15,7 @@ import logging
 import tempfile
 import subprocess
 import shutil
+from clearml import Task, Logger
 
 app = FastAPI()
 logging.basicConfig(
@@ -134,6 +135,10 @@ async def train_model(train_request: TrainRequest):
     os.makedirs(datasets_dir, exist_ok=True)
 
     try:
+        task = Task.init(
+            project_name="ML Training",
+            task_name="Train Model"
+        )
         dvc_file_path = os.path.join(datasets_dir, "iris.json.dvc")
         dataset_path = os.path.join(datasets_dir, "iris.json")
         model_path = os.path.join(datasets_dir, "model.joblib")
@@ -153,6 +158,10 @@ async def train_model(train_request: TrainRequest):
         with open(dataset_path, "r") as f:
             data_content = json.load(f)
 
+        Logger.current_logger().report_text("Dataset loaded successfully")
+        task.connect(train_request.dict())  # Логируем гиперпараметры
+        task.upload_artifact("Dataset", artifact_object=dataset_path)
+
         # Обучение модели
         model_id, trained_model = model_manager.train_model(
             model_type=train_request.model_type,
@@ -167,6 +176,8 @@ async def train_model(train_request: TrainRequest):
         # Загружаем модель в S3
         logger.info(f"Uploading trained model {model_id} to S3")
         upload_to_s3(model_path, f"models/{model_id}.joblib")
+        # Логируем модель как артефакт в ClearML
+        task.upload_artifact("Trained Model", artifact_object=model_path)
 
     except subprocess.CalledProcessError as e:
         logger.error(f"DVC command failed: {e.stderr}")
@@ -180,6 +191,7 @@ async def train_model(train_request: TrainRequest):
         clean_datasets_folder()
 
     logger.info(f"Model {model_id} trained and saved to S3")
+    task.close()  # Завершаем задачу ClearML
     return {"message": "Training completed", "model_id": model_id}
 
 
@@ -334,6 +346,10 @@ async def update_model(model_id: str, update_request: UpdateRequest):
     os.makedirs(datasets_dir, exist_ok=True)
 
     try:
+        task = Task.init(
+            project_name="ML Training",
+            task_name="Update Model"
+        )
         dvc_file_path = os.path.join(datasets_dir, "iris.json.dvc")
         dataset_path = os.path.join(datasets_dir, "iris.json")
         model_path = os.path.join(datasets_dir, "updated_model.joblib")
@@ -353,6 +369,9 @@ async def update_model(model_id: str, update_request: UpdateRequest):
         with open(dataset_path, "r") as f:
             data_content = json.load(f)
 
+        Logger.current_logger().report_text("Dataset loaded successfully")
+        task.connect(update_request.dict())  # Логируем гиперпараметры
+        task.upload_artifact("Dataset", artifact_object=dataset_path)
         # Обновляем модель
         updated_model_id, updated_model = model_manager.update_model(
             model_id=model_id,
@@ -368,6 +387,8 @@ async def update_model(model_id: str, update_request: UpdateRequest):
         # Загружаем обновлённую модель в MinIO
         upload_to_s3(model_path, f"models/{updated_model_id}.joblib")
 
+        # Логируем модель как артефакт в ClearML
+        task.upload_artifact("Trained Model", artifact_object=model_path)
     except subprocess.CalledProcessError as e:
         logger.error(f"DVC command failed: {e.stderr}")
         raise HTTPException(status_code=500, detail=f"DVC command failed: {e.stderr}")
@@ -379,5 +400,6 @@ async def update_model(model_id: str, update_request: UpdateRequest):
     finally:
         clean_datasets_folder()
 
+    task.close()  # Завершаем задачу ClearML
     logger.info(f"Model {updated_model_id} updated and saved to MinIO")
     return {"message": "Model updated successfully", "model_id": updated_model_id}
