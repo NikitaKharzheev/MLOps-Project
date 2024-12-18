@@ -1,7 +1,7 @@
 import boto3
 import os
 from botocore.exceptions import NoCredentialsError
-from app.config import S3_ENDPOINT_URL, S3_ACCESS_KEY, S3_SECRET_KEY, S3_BUCKET_NAME
+from config import S3_ENDPOINT_URL, S3_ACCESS_KEY, S3_SECRET_KEY, S3_BUCKET_NAME
 
 s3_client = boto3.client(
     "s3",

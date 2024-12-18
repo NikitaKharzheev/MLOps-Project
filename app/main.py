@@ -1,8 +1,8 @@
 from fastapi import FastAPI, File, UploadFile, HTTPException
 from pydantic import BaseModel
 from typing import List, Dict, Optional
-from app.ml_service import ModelManager
-from app.s3_service import (
+from ml_service import ModelManager
+from s3_service import (
     upload_to_s3,
     download_from_s3,
     get_list_from_bucket,
