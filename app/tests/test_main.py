@@ -21,7 +21,6 @@ def test_upload_to_s3(s3_mock):
     Test upload_to_s3 using a mocked S3 bucket.
     """
     s3, bucket_name = s3_mock
-    os.environ["AWS_STORAGE_BUCKET_NAME"] = bucket_name
 
     # Загружаем тестовый файл
     test_file_content = b"test content"
@@ -32,7 +31,7 @@ def test_upload_to_s3(s3_mock):
         f.write(test_file_content)
 
     # Тестируем функцию upload_to_s3
-    upload_to_s3(test_file_path, s3_key)
+    upload_to_s3(test_file_path, s3_key, bucket_name=bucket_name)
 
     # Проверяем, что файл появился в S3
     response = s3.get_object(Bucket=bucket_name, Key=s3_key)
