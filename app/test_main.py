@@ -1,7 +1,7 @@
 import pytest
 from fastapi.testclient import TestClient
-from app.main import app
-from app.s3_service import upload_to_s3
+from main import app
+from s3_service import upload_to_s3
 import os
 
 client = TestClient(app)
@@ -24,8 +24,8 @@ def test_upload_to_s3(s3_mock):
 
     # Загружаем тестовый файл
     test_file_content = b"test content"
-    test_file_path = "/tmp/test_file.txt"
-    s3_key = "test_file.txt"
+    test_file_path = "test.json"
+    s3_key = "test.json"
 
     with open(test_file_path, "wb") as f:
         f.write(test_file_content)

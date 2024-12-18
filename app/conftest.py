@@ -1,7 +1,7 @@
 import pytest
 from moto import mock_aws
 import boto3
-from app.config import S3_ENDPOINT_URL, S3_ACCESS_KEY, S3_SECRET_KEY
+from config import S3_ENDPOINT_URL, S3_ACCESS_KEY, S3_SECRET_KEY
 
 
 @pytest.fixture(scope="function")
