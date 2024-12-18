@@ -18,9 +18,9 @@ def create_bucket(bucket_name: str = S3_BUCKET_NAME):
         raise ValueError(f"Error: {e}")
 
 
-def upload_to_s3(file_path: str, s3_key: str):
+def upload_to_s3(file_path: str, s3_key: str, bucket_name: str = S3_BUCKET_NAME):
     try:
-        s3_client.upload_file(file_path, S3_BUCKET_NAME, s3_key)
+        s3_client.upload_file(file_path, bucket_name, s3_key)
     except FileNotFoundError:
         raise ValueError(f"File {file_path} not found")
     except NoCredentialsError:
