@@ -1,0 +1,63 @@
+stages:
+  - build
+  - test
+  - lint
+
+variables:
+  DOCKER_IMAGE: $CI_REGISTRY_IMAGE/ml_service:latest
+  DOCKER_DRIVER: overlay2
+
+before_script:
+  - echo "Logging in to GitLab Container Registry..."
+  - echo $CI_REGISTRY_PASSWORD | docker login -u $CI_REGISTRY_USER --password-stdin $CI_REGISTRY
+
+build-job:
+  stage: build
+  image: docker:latest
+  services:
+    - docker:dind
+  script:
+    - echo "Building Docker image..."
+    - docker build -t $DOCKER_IMAGE .
+    - echo "Pushing Docker image to GitLab Container Registry..."
+    - docker push $DOCKER_IMAGE
+  only:
+    - merge_requests
+    - main
+
+test-job:
+  stage: test
+  image: python:3.9
+  services:
+    - docker:dind
+  variables:
+    DOCKER_COMPOSE_VERSION: 1.29.2
+  before_script:
+    - apt-get update && apt-get install -y curl
+    - curl -L "https://github.com/docker/compose/releases/download/$DOCKER_COMPOSE_VERSION/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+    - chmod +x /usr/local/bin/docker-compose
+  script:
+    - echo "Starting Docker Compose..."
+    - docker-compose up -d
+    - echo "Running tests..."
+    - docker-compose exec ml_service pytest app/conftest.py app/test_main.py
+  after_script:
+    - echo "Stopping and removing containers..."
+    - docker-compose down
+  only:
+    - merge_requests
+    - main
+
+lint-job:
+  stage: lint
+  image: python:3.9
+  script:
+    - echo "Installing linters..."
+    - pip install flake8 black --no-cache-dir
+    - echo "Running flake8..."
+    - flake8 app
+    - echo "Running black..."
+    - black --check app
+  only:
+    - merge_requests
+    - main
