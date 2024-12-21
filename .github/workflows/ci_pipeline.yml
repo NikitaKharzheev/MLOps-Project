@@ -42,13 +42,14 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: '3.9'
+          python-version: '3.9.12'
 
       - name: Install dependencies
         run: |
           pip install poetry
           pip install pytest
           poetry install
+          poetry run
 
       # Запуск тестов
       - name: Run app/conftest.py app/test_main.py
@@ -67,11 +68,11 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: '3.9'
+          python-version: '3.9.12'
 
       - name: Install linters
         run: pip install flake8
 
       # Запуск линтеров
       - name: Run linters
-        run: flake8 app/conftest.py app/test_main.py
+        run: flake8 app
