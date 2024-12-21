@@ -47,10 +47,11 @@ jobs:
       - name: Install dependencies
         run: |
           pip install poetry
+          pip install pytest
           poetry install
 
       # Запуск тестов
-      - name: Run conftest.py test_main.py
+      - name: Run app/conftest.py app/test_main.py
         run: pytest
 
   lint:
@@ -73,4 +74,4 @@ jobs:
 
       # Запуск линтеров
       - name: Run linters
-        run: flake8 app conftest.py test_main.py
+        run: flake8 app/conftest.py app/test_main.py
