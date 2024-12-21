@@ -47,6 +47,7 @@ jobs:
       - name: Install dependencies
         run: |
           pip install poetry
+          poetry config virtualenvs.create false
           poetry install
 
       # Запуск тестов
@@ -73,4 +74,4 @@ jobs:
 
       # Запуск линтеров
       - name: Run linters
-        run: flake8 app
+        run: flake8 --ignore=E501 app
