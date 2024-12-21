@@ -50,7 +50,7 @@ jobs:
           poetry install
 
       # Запуск тестов
-      - name: Run tests
+      - name: Run conftest.py test_main.py
         run: pytest
 
   lint:
@@ -73,4 +73,4 @@ jobs:
 
       # Запуск линтеров
       - name: Run linters
-        run: flake8 app tests
+        run: flake8 app conftest.py test_main.py
