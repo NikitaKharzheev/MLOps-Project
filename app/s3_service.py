@@ -45,7 +45,7 @@ def get_list_from_bucket(folder_name: str):
 
     response = s3_client.list_objects_v2(Bucket=bucket_name, Prefix=prefix)
     trained_models = [
-        obj["Key"][obj["Key"].find("/") + 1 : obj["Key"].rfind(".")]
+        obj["Key"][obj["Key"].find("/") + 1: obj["Key"].rfind(".")]
         for obj in response["Contents"]
     ]
     return trained_models
