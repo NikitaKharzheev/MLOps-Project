@@ -84,8 +84,8 @@ jobs:
           python-version: '3.9.12'
 
       - name: Install linters
-        run: pip install flake8
+        run: pip install ruff
 
       # Запуск линтеров
       - name: Run linters
-        run: flake8 --ignore=E501,W503 app
+        run: ruff app
