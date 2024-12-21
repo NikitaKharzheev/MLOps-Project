@@ -38,6 +38,20 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
 
+      # Установка Docker Compose
+      - name: Set up Docker Compose
+        run: sudo apt-get update && sudo apt-get install -y docker-compose
+
+      # Запуск сервисов через docker-compose
+      - name: Start MinIO and ML service
+        run: docker-compose up -d
+
+      # Проверка состояния MinIO
+      - name: Wait for MinIO to be ready
+        run: |
+          for i in {1..10}; do
+            curl -s http://localhost:9000/minio/health/live && break || sleep 3
+          done
       # Установка Python и зависимостей
       - name: Set up Python
         uses: actions/setup-python@v4
