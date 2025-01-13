@@ -2,20 +2,12 @@
 
 version: 2
 
-# Указываем Python-окружение
-python:
-  interpreter: python3.9  # Указываем версию Python через interpreter
-  install:
-    - method: pip
-      path: .
-    - requirements: docs/requirements.txt  # Зависимости для документации
-
-# Настройка Sphinx
-sphinx:
-  configuration: docs/conf.py  # Путь к конфигурационному файлу Sphinx
-
 # Параметры сборки
 build:
   os: ubuntu-22.04  # Операционная система
   tools:
     python: "3.9"  # Указываем Python как инструмент сборки
+
+# Настройка Sphinx
+sphinx:
+  configuration: docs/conf.py  # Путь к конфигурационному файлу Sphinx
