@@ -2,9 +2,9 @@
 
 version: 2
 
-# Указываем версию Python и способ установки зависимостей
+# Указываем Python-окружение
 python:
-  version: 3.9  # Версия Python для сборки документации
+  interpreter: python3.9  # Указываем версию Python через interpreter
   install:
     - method: pip
       path: .
@@ -17,5 +17,3 @@ sphinx:
 # Параметры сборки
 build:
   os: ubuntu-22.04  # Операционная система
-  tools:
-    python: "3.9"  # Версия Python
