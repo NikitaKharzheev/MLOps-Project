@@ -13,7 +13,6 @@ sphinx:
   configuration: docs/source/conf.py  # Путь к конфигурационному файлу Sphinx
 
 python:
-  version: 3.9  # Указываем версию Python
   install:
     - method: pip
       path: .
