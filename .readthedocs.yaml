@@ -1,0 +1,21 @@
+# .readthedocs.yaml
+
+version: 2
+
+# Указываем Python-окружение
+python:
+  version: 3.8  # Версия Python, используемая для сборки
+  install:
+    - method: pip
+      path: .
+    - requirements: docs/requirements.txt
+
+# Настраиваем сборку документации
+sphinx:
+  configuration: docs/conf.py  # Путь к конфигурационному файлу Sphinx
+
+# Указываем дополнительные настройки
+build:
+  os: ubuntu-22.04  # Операционная система
+  tools:
+    nodejs: "16"  # Версия Node.js (если требуется)
