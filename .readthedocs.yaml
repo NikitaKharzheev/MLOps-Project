@@ -10,4 +10,4 @@ build:
 
 # Настройка Sphinx
 sphinx:
-  configuration: docs/conf.py  # Путь к конфигурационному файлу Sphinx
+  configuration: docs/source/conf.py  # Путь к конфигурационному файлу Sphinx
